@@ -113,7 +113,6 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 #music-btn{position:fixed;bottom:24px;left:24px;width:44px;height:44px;border-radius:50%;background:rgba(212,168,75,0.12);border:1px solid rgba(212,168,75,0.35);color:#d4a84b;font-size:18px;z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s;}
 #music-btn:hover{background:rgba(212,168,75,0.25);}
 #music-btn.playing{border-color:rgba(212,168,75,0.7);box-shadow:0 0 12px rgba(212,168,75,0.2);}
-#particle-canvas{position:fixed;inset:0;pointer-events:none;z-index:9997;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 </head>
@@ -178,7 +177,6 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 
 
 
-<canvas id="particle-canvas"></canvas>
 <button id="music-btn" title="背景音乐">♪</button>
 <audio id="bgm" loop>
   <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg"/>
@@ -251,67 +249,42 @@ musicBtn.addEventListener('click', (e)=>{
   }
 });
 
-// ── Gold particle trail ──
+// ── Gold particle trail (DOM-based) ──
 (function(){
-  const pc = document.getElementById('particle-canvas');
-  function resize(){
-    pc.width = window.innerWidth || document.documentElement.clientWidth || 1920;
-    pc.height = window.innerHeight || document.documentElement.clientHeight || 1080;
-  }
-  resize();
-  window.addEventListener('resize', resize);
-  setTimeout(resize, 500);
-  const ctx = pc.getContext('2d');
-  const pts = [];
-  const COLS = ['rgba(255,215,80,','rgba(255,245,150,','rgba(212,168,75,','rgba(255,255,180,'];
-
-  window.addEventListener('mousemove', function(e){
-    for(let i=0;i<4;i++){
-      pts.push({
-        x: e.clientX + (Math.random()-.5)*10,
-        y: e.clientY + (Math.random()-.5)*10,
-        vx: (Math.random()-.5)*2,
-        vy: (Math.random()-.5)*2 - 1,
-        r: 1 + Math.random()*3,
-        a: 0.8 + Math.random()*0.2,
-        d: 0.018 + Math.random()*0.022,
-        c: COLS[Math.floor(Math.random()*COLS.length)],
-        star: Math.random()>.65
-      });
-    }
-  }, true);
-
-  function draw(){
-    requestAnimationFrame(draw);
-    ctx.clearRect(0,0,pc.width,pc.height);
-    for(let i=pts.length-1;i>=0;i--){
-      const p=pts[i];
-      p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.a-=p.d;
-      if(p.a<=0){pts.splice(i,1);continue;}
-      ctx.save();
-      ctx.globalAlpha=p.a;
-      if(p.star){
-        ctx.fillStyle=p.c+'1)';
-        ctx.translate(p.x,p.y);
-        ctx.rotate(Date.now()*0.003+i*0.5);
-        ctx.beginPath();
-        for(let j=0;j<8;j++){
-          const ang=j*Math.PI/4;
-          const rad=j%2===0?p.r*2:p.r*0.8;
-          j===0?ctx.moveTo(Math.cos(ang)*rad,Math.sin(ang)*rad):ctx.lineTo(Math.cos(ang)*rad,Math.sin(ang)*rad);
+  var COLORS=['#ffd700','#ffed80','#ffc840','#fff0a0','#ffda44'];
+  window.addEventListener('mousemove',function(e){
+    for(var i=0;i<5;i++){
+      var d=document.createElement('div');
+      var size=4+Math.random()*8;
+      var isStar=Math.random()>0.6;
+      d.style.position='fixed';
+      d.style.pointerEvents='none';
+      d.style.zIndex='99999';
+      d.style.left=(e.clientX+(Math.random()-.5)*16)+'px';
+      d.style.top=(e.clientY+(Math.random()-.5)*16)+'px';
+      d.style.width=size+'px';
+      d.style.height=size+'px';
+      d.style.borderRadius=isStar?'2px':'50%';
+      d.style.background=COLORS[Math.floor(Math.random()*COLORS.length)];
+      d.style.transform='translate(-50%,-50%)';
+      d.style.opacity='1';
+      document.body.appendChild(d);
+      var vx=(Math.random()-.5)*80;
+      var vy=(Math.random()-.5)*80-40;
+      var start=null;
+      (function(el,dvx,dvy){
+        function step(ts){
+          if(!start)start=ts;
+          var p=(ts-start)/700;
+          if(p>=1){el.remove();return;}
+          el.style.transform='translate(calc(-50% + '+dvx*p+'px),calc(-50% + '+(dvy*p+50*p*p)+'px)) rotate('+(p*180)+'deg)';
+          el.style.opacity=''+(1-p);
+          requestAnimationFrame(step);
         }
-        ctx.closePath();
-        ctx.fill();
-      } else {
-        ctx.fillStyle=p.c+'1)';
-        ctx.beginPath();
-        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-        ctx.fill();
-      }
-      ctx.restore();
+        requestAnimationFrame(step);
+      })(d,vx,vy);
     }
-  }
-  draw();
+  },true);
 })();
 
 </script>
