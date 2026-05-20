@@ -109,6 +109,11 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 #add-confirm:hover{background:#d4a84b}
 #add-cancel-btn{padding:11px 18px;background:none;border:0.5px solid rgba(40,50,65,0.8);border-radius:8px;color:#4a5060;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
 #add-cancel-btn:hover{border-color:rgba(80,90,110,0.8);color:#7a8090}
+
+#music-btn{position:fixed;bottom:24px;left:24px;width:44px;height:44px;border-radius:50%;background:rgba(212,168,75,0.12);border:1px solid rgba(212,168,75,0.35);color:#d4a84b;font-size:18px;z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s;}
+#music-btn:hover{background:rgba(212,168,75,0.25);}
+#music-btn.playing{border-color:rgba(212,168,75,0.7);box-shadow:0 0 12px rgba(212,168,75,0.2);}
+#particle-canvas{position:fixed;inset:0;pointer-events:none;z-index:9997;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 </head>
@@ -172,6 +177,12 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 </div>
 
 
+
+<canvas id="particle-canvas"></canvas>
+<button id="music-btn" title="背景音乐">♪</button>
+<audio id="bgm" loop>
+  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg"/>
+</audio>
 <div id="fab-hit" title="添加城市"></div><div id="fab">＋</div>
 
 <div id="add-modal">
@@ -205,7 +216,110 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
     </div>
   </div>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js">
+// ── Music ──
+const bgm = document.getElementById('bgm');
+const musicBtn = document.getElementById('music-btn');
+let musicPlaying = false;
+
+// Try autoplay on first interaction
+document.addEventListener('click', function startMusic(){
+  if(!musicPlaying){
+    bgm.volume = 0.35;
+    bgm.play().then(()=>{
+      musicPlaying = true;
+      musicBtn.textContent = '♫';
+      musicBtn.classList.add('playing');
+    }).catch(()=>{});
+  }
+  document.removeEventListener('click', startMusic);
+}, {once: true});
+
+musicBtn.addEventListener('click', (e)=>{
+  e.stopPropagation();
+  if(musicPlaying){
+    bgm.pause();
+    musicPlaying = false;
+    musicBtn.textContent = '♪';
+    musicBtn.classList.remove('playing');
+  } else {
+    bgm.play().then(()=>{
+      musicPlaying = true;
+      musicBtn.textContent = '♫';
+      musicBtn.classList.add('playing');
+    });
+  }
+});
+
+// ── Gold particle trail ──
+const pc = document.getElementById('particle-canvas');
+pc.width = window.innerWidth;
+pc.height = window.innerHeight;
+const pctx = pc.getContext('2d');
+window.addEventListener('resize', ()=>{pc.width=window.innerWidth;pc.height=window.innerHeight;});
+
+const particles = [];
+const GOLD_COLORS = ['rgba(212,168,75,', 'rgba(255,215,80,', 'rgba(255,240,140,', 'rgba(240,190,60,'];
+
+document.addEventListener('mousemove', e=>{
+  // spawn 3-5 particles per move
+  const count = 3 + Math.floor(Math.random()*3);
+  for(let i=0;i<count;i++){
+    particles.push({
+      x: e.clientX + (Math.random()-0.5)*8,
+      y: e.clientY + (Math.random()-0.5)*8,
+      vx: (Math.random()-0.5)*1.5,
+      vy: (Math.random()-0.5)*1.5 - 0.8,
+      size: 1.5 + Math.random()*3,
+      alpha: 0.7 + Math.random()*0.3,
+      decay: 0.015 + Math.random()*0.025,
+      color: GOLD_COLORS[Math.floor(Math.random()*GOLD_COLORS.length)],
+      sparkle: Math.random() > 0.7,
+    });
+  }
+});
+
+function animateParticles(){
+  requestAnimationFrame(animateParticles);
+  pctx.clearRect(0, 0, pc.width, pc.height);
+  for(let i = particles.length-1; i>=0; i--){
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.04; // gentle gravity
+    p.alpha -= p.decay;
+    if(p.alpha <= 0){ particles.splice(i,1); continue; }
+
+    pctx.save();
+    if(p.sparkle){
+      // Draw a 4-point star
+      pctx.fillStyle = p.color + p.alpha + ')';
+      pctx.translate(p.x, p.y);
+      pctx.rotate(Date.now()*0.002 + i);
+      pctx.beginPath();
+      const s = p.size * 1.4;
+      for(let j=0;j<4;j++){
+        pctx.lineTo(Math.cos(j*Math.PI/2)*s, Math.sin(j*Math.PI/2)*s);
+        pctx.lineTo(Math.cos((j+0.5)*Math.PI/2)*s*0.35, Math.sin((j+0.5)*Math.PI/2)*s*0.35);
+      }
+      pctx.closePath();
+      pctx.fill();
+    } else {
+      // Regular circle glow
+      const grad = pctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*1.5);
+      grad.addColorStop(0, p.color + p.alpha + ')');
+      grad.addColorStop(1, p.color + '0)');
+      pctx.fillStyle = grad;
+      pctx.beginPath();
+      pctx.arc(p.x, p.y, p.size*1.5, 0, Math.PI*2);
+      pctx.fill();
+    }
+    pctx.restore();
+  }
+}
+animateParticles();
+
+</script>
 <script>
 // ── Visited country ISO numeric codes ──
 const VISITED = new Set([
