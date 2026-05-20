@@ -252,72 +252,63 @@ musicBtn.addEventListener('click', (e)=>{
 });
 
 // ── Gold particle trail ──
-const pc = document.getElementById('particle-canvas');
-pc.width = window.innerWidth;
-pc.height = window.innerHeight;
-const pctx = pc.getContext('2d');
-window.addEventListener('resize', ()=>{pc.width=window.innerWidth;pc.height=window.innerHeight;});
+(function(){
+  const pc = document.getElementById('particle-canvas');
+  function resize(){ pc.width=window.innerWidth; pc.height=window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+  const ctx = pc.getContext('2d');
+  const pts = [];
+  const COLS = ['rgba(255,215,80,','rgba(255,245,150,','rgba(212,168,75,','rgba(255,255,180,'];
 
-const particles = [];
-const GOLD_COLORS = ['rgba(212,168,75,', 'rgba(255,215,80,', 'rgba(255,240,140,', 'rgba(240,190,60,'];
-
-document.addEventListener('mousemove', e=>{
-  // spawn 3-5 particles per move
-  const count = 3 + Math.floor(Math.random()*3);
-  for(let i=0;i<count;i++){
-    particles.push({
-      x: e.clientX + (Math.random()-0.5)*8,
-      y: e.clientY + (Math.random()-0.5)*8,
-      vx: (Math.random()-0.5)*1.5,
-      vy: (Math.random()-0.5)*1.5 - 0.8,
-      size: 1.5 + Math.random()*3,
-      alpha: 0.7 + Math.random()*0.3,
-      decay: 0.015 + Math.random()*0.025,
-      color: GOLD_COLORS[Math.floor(Math.random()*GOLD_COLORS.length)],
-      sparkle: Math.random() > 0.7,
-    });
-  }
-});
-
-function animateParticles(){
-  requestAnimationFrame(animateParticles);
-  pctx.clearRect(0, 0, pc.width, pc.height);
-  for(let i = particles.length-1; i>=0; i--){
-    const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    p.vy += 0.04; // gentle gravity
-    p.alpha -= p.decay;
-    if(p.alpha <= 0){ particles.splice(i,1); continue; }
-
-    pctx.save();
-    if(p.sparkle){
-      // Draw a 4-point star
-      pctx.fillStyle = p.color + p.alpha + ')';
-      pctx.translate(p.x, p.y);
-      pctx.rotate(Date.now()*0.002 + i);
-      pctx.beginPath();
-      const s = p.size * 1.4;
-      for(let j=0;j<4;j++){
-        pctx.lineTo(Math.cos(j*Math.PI/2)*s, Math.sin(j*Math.PI/2)*s);
-        pctx.lineTo(Math.cos((j+0.5)*Math.PI/2)*s*0.35, Math.sin((j+0.5)*Math.PI/2)*s*0.35);
-      }
-      pctx.closePath();
-      pctx.fill();
-    } else {
-      // Regular circle glow
-      const grad = pctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.size*1.5);
-      grad.addColorStop(0, p.color + p.alpha + ')');
-      grad.addColorStop(1, p.color + '0)');
-      pctx.fillStyle = grad;
-      pctx.beginPath();
-      pctx.arc(p.x, p.y, p.size*1.5, 0, Math.PI*2);
-      pctx.fill();
+  window.addEventListener('mousemove', function(e){
+    for(let i=0;i<4;i++){
+      pts.push({
+        x: e.clientX + (Math.random()-.5)*10,
+        y: e.clientY + (Math.random()-.5)*10,
+        vx: (Math.random()-.5)*2,
+        vy: (Math.random()-.5)*2 - 1,
+        r: 1 + Math.random()*3,
+        a: 0.8 + Math.random()*0.2,
+        d: 0.018 + Math.random()*0.022,
+        c: COLS[Math.floor(Math.random()*COLS.length)],
+        star: Math.random()>.65
+      });
     }
-    pctx.restore();
+  }, true);
+
+  function draw(){
+    requestAnimationFrame(draw);
+    ctx.clearRect(0,0,pc.width,pc.height);
+    for(let i=pts.length-1;i>=0;i--){
+      const p=pts[i];
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.a-=p.d;
+      if(p.a<=0){pts.splice(i,1);continue;}
+      ctx.save();
+      ctx.globalAlpha=p.a;
+      if(p.star){
+        ctx.fillStyle=p.c+'1)';
+        ctx.translate(p.x,p.y);
+        ctx.rotate(Date.now()*0.003+i*0.5);
+        ctx.beginPath();
+        for(let j=0;j<8;j++){
+          const ang=j*Math.PI/4;
+          const rad=j%2===0?p.r*2:p.r*0.8;
+          j===0?ctx.moveTo(Math.cos(ang)*rad,Math.sin(ang)*rad):ctx.lineTo(Math.cos(ang)*rad,Math.sin(ang)*rad);
+        }
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        ctx.fillStyle=p.c+'1)';
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   }
-}
-animateParticles();
+  draw();
+})();
 
 </script>
 <script>
