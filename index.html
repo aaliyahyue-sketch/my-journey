@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>我的足迹</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#000;width:100%;height:100%;overflow:hidden}
+
+#globe-canvas{display:block;position:fixed;inset:0;width:100%!important;height:100%!important}
+
+#header{position:fixed;top:0;left:0;right:0;z-index:20;padding:24px 32px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+#title-main{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;color:rgba(232,223,200,0.9);letter-spacing:0.1em;text-transform:uppercase}
+#title-sub{font-size:10px;color:rgba(100,90,70,0.7);letter-spacing:0.18em;text-transform:uppercase;margin-top:5px}
+#stats-row{display:flex;gap:20px;align-items:center}
+.sn{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:#d4a84b;line-height:1;display:block}
+.sl{font-size:9px;color:rgba(60,50,35,0.9);letter-spacing:0.15em;text-transform:uppercase;margin-top:2px;display:block}
+.sdiv{width:1px;height:26px;background:rgba(30,35,50,0.8)}
+
+#hint{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(80,70,55,0.6);letter-spacing:0.15em;text-transform:uppercase;z-index:20;pointer-events:none}
+
+#tooltip{position:fixed;z-index:30;background:rgba(8,10,18,0.94);border:0.5px solid rgba(42,48,64,0.8);border-radius:12px;padding:12px 16px;pointer-events:none;opacity:0;transform:translateY(6px);transition:opacity 0.18s,transform 0.18s;max-width:230px}
+#tooltip.show{opacity:1;transform:translateY(0)}
+#tt-name{font-family:'Cormorant Garamond',serif;font-size:18px;color:#e8dfc8;font-weight:400}
+#tt-country{font-size:10px;color:#5a5040;letter-spacing:0.1em;text-transform:uppercase;margin-top:3px}
+#tt-desc{font-size:12px;color:#8a7a60;margin-top:6px;font-style:italic;font-family:'Cormorant Garamond',serif;line-height:1.5}
+
+#panel{position:fixed;right:0;top:0;bottom:0;width:400px;background:rgba(6,8,16,0.97);border-left:0.5px solid rgba(30,37,53,0.8);transform:translateX(100%);transition:transform 0.5s cubic-bezier(0.16,1,0.3,1);z-index:40;display:flex;flex-direction:column;overflow:hidden}
+#panel.open{transform:translateX(0)}
+#panel-photo-area{width:100%;height:230px;background:#080c18;position:relative;flex-shrink:0;overflow:hidden}
+#panel-img{width:100%;height:100%;object-fit:cover;display:none;opacity:0;transition:opacity 0.6s}
+#panel-img.loaded{opacity:1}
+#photo-empty{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;cursor:pointer;transition:background 0.2s}
+#photo-empty:hover{background:rgba(212,168,75,0.05)}
+#photo-empty svg{opacity:0.12;transition:opacity 0.2s}
+#photo-empty:hover svg{opacity:0.28}
+#photo-empty-label{font-size:10px;color:rgba(40,50,70,0.7);letter-spacing:0.12em;text-transform:uppercase}
+#photo-fade{position:absolute;bottom:0;left:0;right:0;height:90px;background:linear-gradient(transparent,rgba(6,8,16,0.97));pointer-events:none}
+#photo-dots{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);display:flex;gap:5px}
+.pdot{height:4px;border-radius:2px;background:rgba(255,255,255,0.18);cursor:pointer;transition:all 0.3s}
+.pdot.on{background:#d4a84b;width:18px!important}
+#panel-body{flex:1;overflow-y:auto;padding:20px 26px 80px}
+#panel-body::-webkit-scrollbar{width:3px}
+#panel-body::-webkit-scrollbar-thumb{background:#1a2030;border-radius:2px}
+#panel-city-name{font-family:'Cormorant Garamond',serif;font-size:34px;font-weight:300;color:#e8dfc8;line-height:1;letter-spacing:0.02em}
+#panel-meta{font-size:10px;color:#3a3020;letter-spacing:0.15em;text-transform:uppercase;margin-top:6px}
+#panel-desc-display{font-family:'Cormorant Garamond',serif;font-style:italic;font-size:15px;color:#6a5e44;margin-top:14px;line-height:1.6}
+#panel-divider{width:28px;height:1px;background:#d4a84b;opacity:0.35;margin:16px 0}
+#panel-note-view{font-size:13px;color:#9a8a70;line-height:1.9;min-height:60px}
+#panel-note-view.empty{color:#252830;font-style:italic;font-size:12px}
+#panel-note-edit{display:none;width:100%;min-height:120px;background:rgba(15,20,32,0.8);border:0.5px solid rgba(212,168,75,0.2);border-radius:10px;color:#c8b88a;font-size:13px;line-height:1.9;padding:12px 14px;resize:vertical;font-family:'DM Sans',sans-serif;outline:none;transition:border-color 0.2s}
+#panel-note-edit:focus{border-color:rgba(212,168,75,0.5)}
+#panel-note-edit::placeholder{color:#2a2e3a}
+#upload-btn-row{display:none;margin-top:14px}
+#upload-btn-row.visible{display:block}
+#upload-btn{width:100%;padding:11px;background:rgba(212,168,75,0.08);border:1px dashed rgba(212,168,75,0.25);border-radius:10px;color:#8a7a50;font-size:12px;cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif;letter-spacing:0.05em;text-align:center}
+#upload-btn:hover{background:rgba(212,168,75,0.15);border-color:rgba(212,168,75,0.45);color:#d4a84b}
+#file-input{display:none}
+#date-row{display:none;margin-top:12px}
+#date-row.visible{display:block}
+#date-input{background:rgba(15,20,32,0.8);border:0.5px solid rgba(212,168,75,0.2);border-radius:8px;color:#c8b88a;font-size:12px;padding:8px 12px;outline:none;font-family:'DM Sans',sans-serif;width:100%}
+#date-input::placeholder{color:#2a2e3a}
+#photo-list{display:none;margin-top:10px;gap:6px;flex-direction:column}
+#photo-list.visible{display:flex}
+.photo-item{display:flex;align-items:center;gap:8px;background:rgba(15,20,32,0.6);border-radius:8px;padding:6px 10px;border:0.5px solid rgba(30,37,53,0.5)}
+.photo-item-url{flex:1;font-size:11px;color:#5a6070;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.photo-item-del{background:none;border:none;color:#3a3a4a;cursor:pointer;font-size:14px;padding:0 4px;transition:color 0.2s;line-height:1}
+.photo-item-del:hover{color:#e05050}
+#panel-actions{position:absolute;bottom:0;left:0;right:0;padding:14px 26px;background:rgba(6,8,16,0.97);border-top:0.5px solid rgba(20,25,38,0.8);display:flex;gap:10px}
+.btn{border-radius:8px;padding:9px 18px;font-size:12px;cursor:pointer;font-family:'DM Sans',sans-serif;letter-spacing:0.05em;transition:all 0.2s;border:0.5px solid}
+.btn-edit{background:rgba(212,168,75,0.1);border-color:rgba(212,168,75,0.3);color:#d4a84b}
+.btn-edit:hover{background:rgba(212,168,75,0.2)}
+.btn-save{background:rgba(212,168,75,0.85);border-color:transparent;color:#1a1000;font-weight:500;display:none}
+.btn-save:hover{background:#d4a84b}
+.btn-cancel{background:none;border-color:rgba(40,50,65,0.8);color:#4a5060;display:none}
+.btn-cancel:hover{border-color:rgba(80,90,110,0.8);color:#7a8090}
+#close-panel{background:rgba(8,10,18,0.7);border:0.5px solid rgba(42,48,64,0.6);color:#4a5060;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;position:absolute;top:14px;left:14px;z-index:5}
+#close-panel:hover{border-color:#d4a84b;color:#d4a84b}
+#dim{position:fixed;inset:0;background:rgba(2,4,10,0.5);opacity:0;pointer-events:none;transition:opacity 0.4s;z-index:35}
+#dim.show{opacity:1;pointer-events:all}
+#loading{position:fixed;inset:0;background:#000;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity 1.2s}
+#loading.done{opacity:0;pointer-events:none}
+#loading-text{font-family:'Cormorant Garamond',serif;font-size:15px;color:rgba(212,168,75,0.55);letter-spacing:0.22em;text-transform:uppercase}
+#loading-bar{width:180px;height:1px;background:rgba(212,168,75,0.12);border-radius:1px;overflow:hidden}
+#loading-fill{height:100%;width:0;background:rgba(212,168,75,0.7);transition:width 0.4s}
+
+#fab{position:fixed;bottom:32px;right:32px;width:52px;height:52px;border-radius:50%;background:rgba(212,168,75,0.15);border:1px solid rgba(212,168,75,0.4);color:#d4a84b;font-size:26px;cursor:pointer;z-index:25;display:flex;align-items:center;justify-content:center;transition:all 0.25s;backdrop-filter:blur(8px)}
+#fab:hover{background:rgba(212,168,75,0.3);transform:scale(1.08)}
+#add-modal{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:opacity 0.3s}
+#add-modal.show{opacity:1;pointer-events:all}
+#add-modal-bg{position:absolute;inset:0;background:rgba(2,4,12,0.7);backdrop-filter:blur(6px)}
+#add-modal-box{position:relative;z-index:1;background:#0c1020;border:0.5px solid rgba(212,168,75,0.2);border-radius:18px;width:100%;max-width:420px;padding:28px;transform:translateY(16px) scale(0.97);transition:transform 0.35s cubic-bezier(0.16,1,0.3,1)}
+#add-modal.show #add-modal-box{transform:translateY(0) scale(1)}
+#add-modal h2{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:300;color:#e8dfc8;margin-bottom:20px;letter-spacing:0.05em}
+.add-field{margin-bottom:14px}
+.add-label{font-size:10px;color:#4a4030;letter-spacing:0.12em;text-transform:uppercase;margin-bottom:6px;display:block}
+.add-input{width:100%;background:rgba(15,20,32,0.8);border:0.5px solid rgba(212,168,75,0.18);border-radius:8px;color:#c8b88a;font-size:13px;padding:10px 13px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color 0.2s}
+.add-input:focus{border-color:rgba(212,168,75,0.5)}
+.add-input::placeholder{color:#2a2e3a}
+#add-coords-row{display:flex;gap:10px}
+#add-coords-row .add-input{flex:1}
+#add-search-btn{width:100%;padding:10px;background:rgba(212,168,75,0.08);border:0.5px dashed rgba(212,168,75,0.25);border-radius:8px;color:#7a6a48;font-size:12px;cursor:pointer;transition:all 0.2s;font-family:'DM Sans',sans-serif;margin-bottom:14px}
+#add-search-btn:hover{background:rgba(212,168,75,0.15);color:#d4a84b}
+#add-status{font-size:11px;color:#5a8050;min-height:16px;margin-bottom:10px;font-style:italic}
+#add-modal-actions{display:flex;gap:10px;margin-top:6px}
+#add-confirm{flex:1;padding:11px;background:rgba(212,168,75,0.85);border:none;border-radius:8px;color:#1a1000;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:background 0.2s}
+#add-confirm:hover{background:#d4a84b}
+#add-cancel-btn{padding:11px 18px;background:none;border:0.5px solid rgba(40,50,65,0.8);border-radius:8px;color:#4a5060;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all 0.2s}
+#add-cancel-btn:hover{border-color:rgba(80,90,110,0.8);color:#7a8090}
+</style>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<div id="loading">
+  <div id="loading-text">正在点亮地球…</div>
+  <div id="loading-bar"><div id="loading-fill"></div></div>
+</div>
+
+<canvas id="globe-canvas"></canvas>
+
+<div id="header">
+  <div>
+    <div id="title-main">我的足迹</div>
+    <div id="title-sub">拖动地球 · 点击城市</div>
+  </div>
+  <div id="stats-row">
+    <div><span class="sn">52</span><span class="sl">城市</span></div>
+    <div class="sdiv"></div>
+    <div><span class="sn">18</span><span class="sl">国家</span></div>
+    <div class="sdiv"></div>
+    <div><span class="sn">4</span><span class="sl">大洲</span></div>
+  </div>
+</div>
+
+<div id="hint">拖动旋转 · 滚轮缩放 · 点击城市</div>
+<div id="tooltip"><div id="tt-name"></div><div id="tt-country"></div><div id="tt-desc"></div></div>
+<div id="dim"></div>
+
+<div id="panel">
+  <button id="close-panel">✕</button>
+  <div id="panel-photo-area">
+    <img id="panel-img" alt=""/>
+    <div id="photo-empty">
+      <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#4a6080" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <div id="photo-empty-label">点击编辑可上传照片</div>
+    </div>
+    <div id="photo-fade"></div>
+    <div id="photo-dots"></div>
+  </div>
+  <div id="panel-body">
+    <div id="panel-city-name"></div>
+    <div id="panel-meta"></div>
+    <div id="panel-desc-display"></div>
+    <div id="panel-divider"></div>
+    <div id="panel-note-view"></div>
+    <textarea id="panel-note-edit" placeholder="写下你在这座城市的故事、感受、记忆……"></textarea>
+    <div id="date-row"><input id="date-input" type="text" placeholder="到访时间，例：2023年春"/></div>
+    <div id="upload-btn-row">
+      <button id="upload-btn">＋ 点击上传照片（可多选）</button>
+      <input id="file-input" type="file" accept="image/*" multiple/>
+    </div>
+    <div id="photo-list"></div>
+  </div>
+  <div id="panel-actions">
+    <button class="btn btn-edit" id="btn-edit">✏ 编辑</button>
+    <button class="btn btn-save" id="btn-save">保存</button>
+    <button class="btn btn-cancel" id="btn-cancel">取消</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+// ── Visited country ISO numeric codes ──
+const VISITED = new Set([
+  "826","724","250","492","380","276","352","792","788",
+  "203","040","348","504","620","410","156","840","392","208","528","344"
+]);
+
+// ── City data ──
+const CITIES_BASE = [
+  {id:"london",name:"伦敦",country:"英国",iso:"826",coords:[51.5074,-0.1276],desc:"雾气里藏着无数故事"},
+  {id:"bath",name:"巴斯",country:"英国",iso:"826",coords:[51.3811,-2.3599],desc:"罗马浴场与金色石砌小城"},
+  {id:"granada",name:"格拉纳达",country:"西班牙",iso:"724",coords:[37.1773,-3.5986],desc:"阿尔罕布拉宫的红色城墙"},
+  {id:"barcelona",name:"巴塞罗那",country:"西班牙",iso:"724",coords:[41.3851,2.1734],desc:"高迪的梦在这里生长"},
+  {id:"madrid",name:"马德里",country:"西班牙",iso:"724",coords:[40.4168,-3.7038],desc:"普拉多的画与深夜的街"},
+  {id:"seville",name:"塞维利亚",country:"西班牙",iso:"724",coords:[37.3891,-5.9845],desc:"弗拉明戈的心脏"},
+  {id:"paris",name:"巴黎",country:"法国",iso:"250",coords:[48.8566,2.3522],desc:"每条街道都是一首诗"},
+  {id:"nice",name:"尼斯",country:"法国",iso:"250",coords:[43.7102,7.2620],desc:"蔚蓝海岸的蓝"},
+  {id:"cannes",name:"戛纳",country:"法国",iso:"250",coords:[43.5528,7.0170],desc:"红毯与棕榈树的城市"},
+  {id:"menton",name:"芒通",country:"法国",iso:"250",coords:[43.7750,7.5000],desc:"法意边境最甜的柠檬"},
+  {id:"eze",name:"埃兹",country:"法国",iso:"250",coords:[43.7272,7.3618],desc:"悬崖上的中世纪鹰巢村"},
+  {id:"monaco",name:"摩纳哥",country:"摩纳哥",iso:"492",coords:[43.7384,7.4246],desc:"世界上最小的奢华"},
+  {id:"rome",name:"罗马",country:"意大利",iso:"380",coords:[41.9028,12.4964],desc:"永恒之城从不赶时间"},
+  {id:"florence",name:"佛罗伦萨",country:"意大利",iso:"380",coords:[43.7696,11.2558],desc:"文艺复兴还留在这里"},
+  {id:"venice",name:"威尼斯",country:"意大利",iso:"380",coords:[45.4408,12.3155],desc:"水上的迷失是一种幸福"},
+  {id:"hamburg",name:"汉堡",country:"德国",iso:"276",coords:[53.5753,9.9937],desc:"港口城市的码头气息"},
+  {id:"berlin",name:"柏林",country:"德国",iso:"276",coords:[52.5200,13.4050],desc:"历史的伤口与创意的疤"},
+  {id:"iceland",name:"冰岛",country:"冰岛",iso:"352",coords:[64.9631,-19.0208],desc:"世界尽头的极光与沉默"},
+  {id:"istanbul",name:"伊斯坦布尔",country:"土耳其",iso:"792",coords:[41.0082,28.9784],desc:"两个大洲之间的裂缝"},
+  {id:"tunis",name:"突尼斯",country:"突尼斯",iso:"788",coords:[36.8065,10.1815],desc:"地中海南岸的白色迷宫"},
+  {id:"prague",name:"布拉格",country:"捷克",iso:"203",coords:[50.0755,14.4378],desc:"童话城市的金色尖塔"},
+  {id:"vienna",name:"维也纳",country:"奥地利",iso:"040",coords:[48.2082,16.3738],desc:"音乐与咖啡馆的帝都"},
+  {id:"budapest",name:"布达佩斯",country:"匈牙利",iso:"348",coords:[47.4979,19.0402],desc:"多瑙河把它一分为二"},
+  {id:"morocco",name:"摩洛哥",country:"摩洛哥",iso:"504",coords:[31.7917,-7.0926],desc:"感官的迷宫与香料的海"},
+  {id:"lisbon",name:"里斯本",country:"葡萄牙",iso:"620",coords:[38.7223,-9.1393],desc:"法多与缆车的忧郁"},
+  {id:"porto",name:"波尔图",country:"葡萄牙",iso:"620",coords:[41.1579,-8.6291],desc:"蓝色瓷砖与波特酒"},
+  {id:"seoul",name:"首尔",country:"韩国",iso:"410",coords:[37.5665,126.9780],desc:"传统与霓虹的并行宇宙"},
+  {id:"gangneung",name:"江陵",country:"韩国",iso:"410",coords:[37.7519,128.8760],desc:"东海岸的松林与咖啡街"},
+  {id:"shantou",name:"汕头",country:"中国",iso:"156",coords:[23.3541,116.6820],desc:"潮汕的味道是家的味道"},
+  {id:"guangzhou",name:"广州",country:"中国",iso:"156",coords:[23.1291,113.2644],desc:"早茶与万家灯火"},
+  {id:"guilin",name:"桂林",country:"中国",iso:"156",coords:[25.2740,110.2990],desc:"桂林山水甲天下"},
+  {id:"guizhou",name:"贵州",country:"中国",iso:"156",coords:[26.5783,106.7135],desc:"层叠梯田与苗寨烟雨"},
+  {id:"yunnan",name:"云南",country:"中国",iso:"156",coords:[25.0453,102.7123],desc:"天空之境与彩云之南"},
+  {id:"hangzhou",name:"杭州",country:"中国",iso:"156",coords:[30.2741,120.1551],desc:"西湖边的烟雨与龙井"},
+  {id:"shanghai",name:"上海",country:"中国",iso:"156",coords:[31.2304,121.4737],desc:"东方与西方在此握手"},
+  {id:"zhoushan",name:"舟山",country:"中国",iso:"156",coords:[29.9852,122.1078],desc:"海岛渔火与观音道场"},
+  {id:"ningbo",name:"宁波",country:"中国",iso:"156",coords:[29.8683,121.5440],desc:"江南水城与千年藏书楼"},
+  {id:"jilin",name:"吉林",country:"中国",iso:"156",coords:[43.8380,126.5500],desc:"雾凇与松花江的冬日"},
+  {id:"liaoning",name:"辽宁",country:"中国",iso:"156",coords:[41.8350,123.4290],desc:"关外大地的厚重与辽阔"},
+  {id:"hongkong",name:"香港",country:"香港",iso:"344",coords:[22.3193,114.1694],desc:"维多利亚港的霓虹夜"},
+  {id:"la",name:"洛杉矶",country:"美国",iso:"840",coords:[34.0522,-118.2437],desc:"高速公路与永恒的阳光"},
+  {id:"lasvegas",name:"拉斯维加斯",country:"美国",iso:"840",coords:[36.1699,-115.1398],desc:"沙漠里燃烧的幻觉"},
+  {id:"nyc",name:"纽约",country:"美国",iso:"840",coords:[40.7128,-74.0060],desc:"永不停歇的巨大引擎"},
+  {id:"boston",name:"波士顿",country:"美国",iso:"840",coords:[42.3601,-71.0589],desc:"砖红色建筑与常青藤"},
+  {id:"kyoto",name:"京都",country:"日本",iso:"392",coords:[35.0116,135.7681],desc:"时间在这里流得不一样慢"},
+  {id:"nara",name:"奈良",country:"日本",iso:"392",coords:[34.6851,135.8050],desc:"小鹿与千年古刹同眠"},
+  {id:"copenhagen",name:"哥本哈根",country:"丹麦",iso:"208",coords:[55.6761,12.5683],desc:"北欧设计与小美人鱼"},
+  {id:"amsterdam",name:"阿姆斯特丹",country:"荷兰",iso:"528",coords:[52.3676,4.9041],desc:"运河与风车的自由之城"},
+  {id:"hague",name:"海牙",country:"荷兰",iso:"528",coords:[52.0705,4.3007],desc:"宫廷与国际法庭之都"},
+  {id:"rotterdam",name:"鹿特丹",country:"荷兰",iso:"528",coords:[51.9244,4.4777],desc:"现代建筑的实验场"},
+];
+
+// ── Storage ──
+function loadData(){try{return JSON.parse(localStorage.getItem('travelData2')||'{}')}catch(e){return{}}}
+function saveData(d){try{localStorage.setItem('travelData2',JSON.stringify(d))}catch(e){}}
+let userData=loadData();
+function getCityData(id){return userData[id]||{note:'',photos:[],date:''}}
+function setCityData(id,d){userData[id]=d;saveData(userData)}
+
+// ── Three.js setup ──
+const canvas=document.getElementById('globe-canvas');
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,0.1,200);
+camera.position.z=2.8;
+
+// Stars
+const starGeo=new THREE.BufferGeometry();
+const starPos=[];
+for(let i=0;i<7000;i++){
+  const th=Math.random()*Math.PI*2,ph=Math.acos(2*Math.random()-1),r=40+Math.random()*30;
+  starPos.push(r*Math.sin(ph)*Math.cos(th),r*Math.sin(ph)*Math.sin(th),r*Math.cos(ph));
+}
+starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
+scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.055,transparent:true,opacity:0.65})));
+
+// Lighting
+scene.add(new THREE.AmbientLight(0x223355,1.0));
+const sun=new THREE.DirectionalLight(0xfff8e8,1.6);
+sun.position.set(5,3,5);scene.add(sun);
+
+const GR=1.0;
+const globeGroup=new THREE.Group();
+scene.add(globeGroup);
+
+// ── Country overlay canvas texture ──
+// We'll draw visited countries as golden overlays using a 2D canvas mapped onto the sphere
+const overlayCanvas=document.createElement('canvas');
+overlayCanvas.width=2048;overlayCanvas.height=1024;
+const octx=overlayCanvas.getContext('2d');
+const overlayTex=new THREE.CanvasTexture(overlayCanvas);
+
+// Earth base sphere
+const earthGeo=new THREE.SphereGeometry(GR,64,64);
+const texLoader=new THREE.TextureLoader();
+const earthMat=new THREE.MeshPhongMaterial({shininess:6,transparent:false});
+
+let loadCount=0;
+const fill=document.getElementById('loading-fill');
+function onTex(){
+  loadCount++;
+  fill.style.width=(loadCount/3*80)+'%';
+  if(loadCount>=2) fetchCountries();
+}
+texLoader.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-blue-marble.jpg',t=>{earthMat.map=t;earthMat.needsUpdate=true;onTex()},undefined,onTex);
+texLoader.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png',t=>{earthMat.bumpMap=t;earthMat.bumpScale=0.04;earthMat.needsUpdate=true;onTex()},undefined,onTex);
+
+const earthMesh=new THREE.Mesh(earthGeo,earthMat);
+globeGroup.add(earthMesh);
+
+// Country overlay sphere (slightly above earth)
+const ovGeo=new THREE.SphereGeometry(GR*1.001,64,64);
+const ovMat=new THREE.MeshBasicMaterial({map:overlayTex,transparent:true,depthWrite:false});
+const ovMesh=new THREE.Mesh(ovGeo,ovMat);
+globeGroup.add(ovMesh);
+
+// Atmosphere
+const atmMat=new THREE.MeshPhongMaterial({color:0x3366aa,transparent:true,opacity:0.07,side:THREE.FrontSide});
+globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(GR*1.025,64,64),atmMat));
+
+// ── Fetch and draw countries ──
+function fetchCountries(){
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    .then(r=>r.json())
+    .then(world=>{
+      // topojson decode inline (minimal)
+      const topo=world;
+      drawCountriesOnCanvas(topo);
+      fill.style.width='95%';
+      buildCityDots();
+      setTimeout(()=>{
+        fill.style.width='100%';
+        setTimeout(()=>document.getElementById('loading').classList.add('done'),600);
+      },400);
+    })
+    .catch(()=>{
+      buildCityDots();
+      document.getElementById('loading').classList.add('done');
+    });
+}
+
+// Minimal topojson arc decoder
+function decodeArcs(topo){
+  const arcs=topo.arcs;
+  return arcs.map(arc=>{
+    let x=0,y=0;
+    return arc.map(pt=>{x+=pt[0];y+=pt[1];return[x,y];});
+  });
+}
+
+function topoFeature(topo,obj){
+  const decodedArcs=decodeArcs(topo);
+  const scale=topo.transform?topo.transform.scale:[1,1];
+  const translate=topo.transform?topo.transform.translate:[0,0];
+  function scalePoint(pt){return[pt[0]*scale[0]+translate[0],pt[1]*scale[1]+translate[1]];}
+  function arcPoints(idx){
+    const reversed=idx<0;
+    const arc=decodedArcs[reversed?~idx:idx];
+    const pts=arc.map(scalePoint);
+    return reversed?pts.slice().reverse():pts;
+  }
+  function ringCoords(ring){
+    let pts=[];
+    ring.forEach(idx=>{const ap=arcPoints(idx);pts=pts.concat(idx<0?ap.slice(0,-1):ap.slice(0,-1));});
+    return pts;
+  }
+  return obj.geometries.map(geom=>{
+    const id=String(geom.id).padStart(3,'0');
+    let polygons=[];
+    if(geom.type==='Polygon'){polygons=[geom.arcs.map(ringCoords)];}
+    else if(geom.type==='MultiPolygon'){polygons=geom.arcs.map(p=>p.map(ringCoords));}
+    return{id,polygons};
+  });
+}
+
+function drawCountriesOnCanvas(topo){
+  const W2=overlayCanvas.width,H2=overlayCanvas.height;
+  octx.clearRect(0,0,W2,H2);
+  const features=topoFeature(topo,topo.objects.countries);
+  features.forEach(f=>{
+    const visited=VISITED.has(f.id);
+    f.polygons.forEach(poly=>{
+      poly.forEach((ring,ri)=>{
+        octx.beginPath();
+        ring.forEach((pt,i)=>{
+          // pt is [lng,lat] in degrees
+          const lng=pt[0],lat=pt[1];
+          const px=(lng+180)/360*W2;
+          const py=(90-lat)/180*H2;
+          if(i===0)octx.moveTo(px,py);else octx.lineTo(px,py);
+        });
+        octx.closePath();
+        if(ri===0){
+          if(visited){
+            octx.fillStyle='rgba(212,155,40,0.55)';
+            octx.fill();
+            octx.strokeStyle='rgba(255,200,80,0.35)';
+            octx.lineWidth=1.2;
+            octx.stroke();
+          } else {
+            octx.strokeStyle='rgba(30,45,70,0.4)';
+            octx.lineWidth=0.6;
+            octx.stroke();
+          }
+        }
+      });
+    });
+  });
+  overlayTex.needsUpdate=true;
+}
+
+// ── City dots ──
+const dotGroup=new THREE.Group();
+globeGroup.add(dotGroup);
+const cityMeshes=[];
+
+function buildCityDots(){
+  CITIES_BASE.forEach(city=>{
+    const pos=latLngTo3D(city.coords[0],city.coords[1],GR*1.012);
+    // Pulse ring
+    const ring=new THREE.Mesh(
+      new THREE.SphereGeometry(0.011,10,10),
+      new THREE.MeshBasicMaterial({color:0xffd060,transparent:true,opacity:0.3})
+    );
+    ring.position.copy(pos);
+    ring._phase=Math.random()*Math.PI*2;
+    ring._isRing=true;
+    dotGroup.add(ring);
+    // Core
+    const dot=new THREE.Mesh(
+      new THREE.SphereGeometry(0.007,10,10),
+      new THREE.MeshBasicMaterial({color:0xffe090})
+    );
+    dot.position.copy(pos);
+    dot._city=city;
+    cityMeshes.push(dot);
+    dotGroup.add(dot);
+    // Tiny white center
+    const ctr=new THREE.Mesh(
+      new THREE.SphereGeometry(0.003,8,8),
+      new THREE.MeshBasicMaterial({color:0xfffdf0})
+    );
+    ctr.position.copy(pos);
+    dotGroup.add(ctr);
+  });
+}
+
+function latLngTo3D(lat,lng,r){
+  const phi=(90-lat)*Math.PI/180;
+  const theta=(lng+180)*Math.PI/180;
+  return new THREE.Vector3(-r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi),r*Math.sin(phi)*Math.sin(theta));
+}
+
+// ── Interaction ──
+const raycaster=new THREE.Raycaster();
+const mouse2=new THREE.Vector2();
+let isDrag=false,prevM={x:0,y:0},rotV={x:0,y:0};
+let hovCity=null,panelOpen=false;
+const tooltip=document.getElementById('tooltip');
+
+function getCity(mx,my){
+  mouse2.x=(mx/window.innerWidth)*2-1;
+  mouse2.y=-(my/window.innerHeight)*2+1;
+  raycaster.setFromCamera(mouse2,camera);
+  const hits=raycaster.intersectObjects(cityMeshes);
+  return hits.length?hits[0].object._city:null;
+}
+
+canvas.addEventListener('mousedown',e=>{if(panelOpen)return;isDrag=true;prevM={x:e.clientX,y:e.clientY};rotV={x:0,y:0};});
+canvas.addEventListener('mousemove',e=>{
+  if(isDrag){
+    const dx=e.clientX-prevM.x,dy=e.clientY-prevM.y;
+    rotV.y=dx*0.005;rotV.x=dy*0.005;
+    globeGroup.rotation.y+=rotV.y;globeGroup.rotation.x+=rotV.x;
+    prevM={x:e.clientX,y:e.clientY};
+  } else {
+    const c=getCity(e.clientX,e.clientY);
+    if(c!==hovCity){
+      hovCity=c;
+      if(c){
+        document.getElementById('tt-name').textContent=c.name;
+        document.getElementById('tt-country').textContent=c.country;
+        document.getElementById('tt-desc').textContent=c.desc;
+        tooltip.classList.add('show');
+        canvas.style.cursor='pointer';
+      } else {tooltip.classList.remove('show');canvas.style.cursor='grab';}
+    }
+    if(c){tooltip.style.left=(e.clientX+16)+'px';tooltip.style.top=(e.clientY-10)+'px';}
+  }
+});
+canvas.addEventListener('mouseup',e=>{
+  if(!isDrag)return;isDrag=false;
+  const c=getCity(e.clientX,e.clientY);
+  if(c)openPanel(c);
+});
+canvas.addEventListener('mouseleave',()=>{isDrag=false;});
+canvas.addEventListener('wheel',e=>{
+  camera.position.z=Math.max(1.5,Math.min(5,camera.position.z+e.deltaY*0.003));
+},{passive:true});
+canvas.style.cursor='grab';
+
+// ── Animate ──
+let t2=0;
+function animate(){
+  requestAnimationFrame(animate);t2+=0.016;
+  if(!isDrag&&!panelOpen){globeGroup.rotation.y+=0.0006;}
+  if(!isDrag){
+    rotV.x*=0.9;rotV.y*=0.9;
+    if(Math.abs(rotV.x)>0.00005){globeGroup.rotation.x+=rotV.x;}
+    if(Math.abs(rotV.y)>0.00005){globeGroup.rotation.y+=rotV.y;}
+  }
+  dotGroup.children.forEach(m=>{
+    if(m._isRing){
+      const s=1+0.7*Math.abs(Math.sin(t2*1.4+m._phase));
+      m.scale.setScalar(s);
+      m.material.opacity=0.4*(1-Math.abs(Math.sin(t2*1.4+m._phase))*0.7);
+    }
+  });
+  renderer.render(scene,camera);
+}
+animate();
+
+window.addEventListener('resize',()=>{
+  camera.aspect=window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth,window.innerHeight);
+});
+
+// ── Panel ──
+let curCity=null,editMode=false,photIdx=0,tmpPhotos=[];
+
+function openPanel(city){
+  curCity=city;editMode=false;photIdx=0;panelOpen=true;rotV={x:0,y:0};
+  const d=getCityData(city.id);
+  document.getElementById('panel-city-name').textContent=city.name;
+  document.getElementById('panel-meta').textContent=(d.date?d.date+' · ':'')+city.country;
+  document.getElementById('panel-desc-display').textContent=city.desc;
+  const nv=document.getElementById('panel-note-view');
+  if(d.note&&d.note.trim()){nv.textContent=d.note;nv.classList.remove('empty');}
+  else{nv.textContent='这座城市的故事还等待着被记录…';nv.classList.add('empty');}
+  setViewMode();renderPhotos(d.photos||[]);
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('dim').classList.add('show');
+}
+
+function setViewMode(){
+  editMode=false;
+  document.getElementById('panel-note-view').style.display='block';
+  document.getElementById('panel-note-edit').style.display='none';
+  document.getElementById('date-row').classList.remove('visible');
+  document.getElementById('upload-btn-row').classList.remove('visible');
+  document.getElementById('photo-list').classList.remove('visible');
+  document.getElementById('btn-edit').style.display='block';
+  document.getElementById('btn-save').style.display='none';
+  document.getElementById('btn-cancel').style.display='none';
+}
+
+function setEditMode(){
+  const d=getCityData(curCity.id);
+  editMode=true;tmpPhotos=[...(d.photos||[])];
+  document.getElementById('panel-note-view').style.display='none';
+  const ta=document.getElementById('panel-note-edit');
+  ta.style.display='block';ta.value=d.note||'';
+  document.getElementById('date-input').value=d.date||'';
+  document.getElementById('date-row').classList.add('visible');
+  document.getElementById('upload-btn-row').classList.add('visible');
+  document.getElementById('btn-edit').style.display='none';
+  document.getElementById('btn-save').style.display='block';
+  document.getElementById('btn-cancel').style.display='block';
+  renderPhotoList();
+}
+
+function renderPhotos(photos){
+  const img=document.getElementById('panel-img');
+  const empty=document.getElementById('photo-empty');
+  const dots=document.getElementById('photo-dots');
+  if(photos&&photos.length>0){
+    img.style.display='block';img.classList.remove('loaded');
+    img.onload=()=>img.classList.add('loaded');img.src=photos[photIdx]||'';
+    empty.style.display='none';
+    dots.innerHTML=photos.map((_,i)=>`<div class="pdot ${i===photIdx?'on':''}" style="width:${i===photIdx?'18':'5'}px" onclick="setPhoto(${i})"></div>`).join('');
+  } else {img.style.display='none';empty.style.display='flex';dots.innerHTML='';}
+}
+
+function renderPhotoList(){
+  const pl=document.getElementById('photo-list');pl.classList.add('visible');
+  pl.innerHTML=tmpPhotos.map((url,i)=>`<div class="photo-item"><span class="photo-item-url">${url}</span><button class="photo-item-del" onclick="removePhoto(${i})">✕</button></div>`).join('');
+  renderPhotos(tmpPhotos);
+}
+
+function setPhoto(i){photIdx=i;const d=getCityData(curCity.id);renderPhotos(editMode?tmpPhotos:d.photos||[]);}
+function removePhoto(i){tmpPhotos.splice(i,1);renderPhotoList();}
+
+document.getElementById('upload-btn').addEventListener('click',()=>{
+  document.getElementById('file-input').click();
+});
+document.getElementById('file-input').addEventListener('change',function(){
+  const files=Array.from(this.files);
+  if(!files.length)return;
+  files.forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      tmpPhotos.push(e.target.result);
+      renderPhotoList();
+    };
+    reader.readAsDataURL(file);
+  });
+  this.value='';
+});
+document.getElementById('btn-edit').addEventListener('click',setEditMode);
+document.getElementById('btn-save').addEventListener('click',()=>{
+  const note=document.getElementById('panel-note-edit').value.trim();
+  const date=document.getElementById('date-input').value.trim();
+  setCityData(curCity.id,{note,photos:tmpPhotos,date});
+  const nv=document.getElementById('panel-note-view');
+  if(note){nv.textContent=note;nv.classList.remove('empty');}
+  else{nv.textContent='这座城市的故事还等待着被记录…';nv.classList.add('empty');}
+  document.getElementById('panel-meta').textContent=(date?date+' · ':'')+curCity.country;
+  renderPhotos(tmpPhotos);setViewMode();
+});
+document.getElementById('btn-cancel').addEventListener('click',()=>{
+  const d=getCityData(curCity.id);renderPhotos(d.photos||[]);setViewMode();
+});
+
+function closePanel(){
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('dim').classList.remove('show');
+  panelOpen=false;curCity=null;
+}
+document.getElementById('close-panel').addEventListener('click',closePanel);
+document.getElementById('dim').addEventListener('click',closePanel);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
+
+// ── Add City ──
+let userCities = [];
+try { userCities = JSON.parse(localStorage.getItem('userCities') || '[]'); } catch(e){}
+
+function saveUserCities(){ localStorage.setItem('userCities', JSON.stringify(userCities)); }
+
+function addDotToGlobe(city){
+  const pos = latLngTo3D(city.coords[0], city.coords[1], GR*1.012);
+  const ring = new THREE.Mesh(
+    new THREE.SphereGeometry(0.011,10,10),
+    new THREE.MeshBasicMaterial({color:0xffd060,transparent:true,opacity:0.3})
+  );
+  ring.position.copy(pos);
+  ring._phase = Math.random()*Math.PI*2;
+  ring._isRing = true;
+  dotGroup.add(ring);
+  const dot = new THREE.Mesh(
+    new THREE.SphereGeometry(0.007,10,10),
+    new THREE.MeshBasicMaterial({color:0xffe090})
+  );
+  dot.position.copy(pos);
+  dot._city = city;
+  cityMeshes.push(dot);
+  dotGroup.add(dot);
+  const ctr = new THREE.Mesh(
+    new THREE.SphereGeometry(0.003,8,8),
+    new THREE.MeshBasicMaterial({color:0xfffdf0})
+  );
+  ctr.position.copy(pos);
+  dotGroup.add(ctr);
+}
+
+// Load saved user cities on startup
+userCities.forEach(c => addDotToGlobe(c));
+
+// FAB open modal
+document.getElementById('fab').addEventListener('click', ()=>{
+  document.getElementById('add-name').value='';
+  document.getElementById('add-country').value='';
+  document.getElementById('add-desc').value='';
+  document.getElementById('add-lat').value='';
+  document.getElementById('add-lng').value='';
+  document.getElementById('add-status').textContent='';
+  document.getElementById('add-modal').classList.add('show');
+});
+
+// Auto-lookup coords via nominatim
+document.getElementById('add-search-btn').addEventListener('click', async ()=>{
+  const name = document.getElementById('add-name').value.trim();
+  const country = document.getElementById('add-country').value.trim();
+  if(!name){ document.getElementById('add-status').textContent='请先填写城市名称'; return; }
+  document.getElementById('add-status').textContent='查询中…';
+  document.getElementById('add-status').style.color='#7a8090';
+  try {
+    const q = encodeURIComponent(name + (country ? ', '+country : ''));
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`);
+    const data = await res.json();
+    if(data && data.length > 0){
+      const lat = parseFloat(data[0].lat).toFixed(4);
+      const lng = parseFloat(data[0].lon).toFixed(4);
+      document.getElementById('add-lat').value = lat;
+      document.getElementById('add-lng').value = lng;
+      document.getElementById('add-status').textContent = '✓ 坐标已自动填入：' + lat + ', ' + lng;
+      document.getElementById('add-status').style.color='#5a9060';
+    } else {
+      document.getElementById('add-status').textContent = '未找到，请手动填写坐标';
+      document.getElementById('add-status').style.color='#a06050';
+    }
+  } catch(e) {
+    document.getElementById('add-status').textContent = '网络错误，请手动填写坐标';
+    document.getElementById('add-status').style.color='#a06050';
+  }
+});
+
+// Confirm add
+document.getElementById('add-confirm').addEventListener('click', ()=>{
+  const name = document.getElementById('add-name').value.trim();
+  const country = document.getElementById('add-country').value.trim();
+  const desc = document.getElementById('add-desc').value.trim() || '等待探索的城市';
+  const lat = parseFloat(document.getElementById('add-lat').value);
+  const lng = parseFloat(document.getElementById('add-lng').value);
+  if(!name || !country){ alert('请填写城市名和国家'); return; }
+  if(isNaN(lat) || isNaN(lng)){ alert('请先查询坐标，或手动填写坐标'); return; }
+  const newCity = {
+    id: 'user_' + Date.now(),
+    name, country, desc,
+    coords: [lat, lng],
+    isUserAdded: true
+  };
+  userCities.push(newCity);
+  saveUserCities();
+  addDotToGlobe(newCity);
+  document.getElementById('add-modal').classList.remove('show');
+});
+
+// Cancel
+document.getElementById('add-cancel-btn').addEventListener('click', ()=>{
+  document.getElementById('add-modal').classList.remove('show');
+});
+document.getElementById('add-modal-bg').addEventListener('click', ()=>{
+  document.getElementById('add-modal').classList.remove('show');
+});
+</script>
+
+<button id="fab" title="添加城市">＋</button>
+
+<div id="add-modal">
+  <div id="add-modal-bg"></div>
+  <div id="add-modal-box">
+    <h2>添加新城市</h2>
+    <div class="add-field">
+      <label class="add-label">城市名称</label>
+      <input class="add-input" id="add-name" placeholder="例：克拉科夫"/>
+    </div>
+    <div class="add-field">
+      <label class="add-label">国家</label>
+      <input class="add-input" id="add-country" placeholder="例：波兰"/>
+    </div>
+    <div class="add-field">
+      <label class="add-label">一句话描述</label>
+      <input class="add-input" id="add-desc" placeholder="例：中世纪古城与历史的重量"/>
+    </div>
+    <button id="add-search-btn">🔍 自动查询坐标（填好城市名和国家后点这里）</button>
+    <div id="add-status"></div>
+    <div class="add-field">
+      <label class="add-label">坐标（自动填入，也可手动填）</label>
+      <div id="add-coords-row">
+        <input class="add-input" id="add-lat" placeholder="纬度，例：50.06"/>
+        <input class="add-input" id="add-lng" placeholder="经度，例：19.94"/>
+      </div>
+    </div>
+    <div id="add-modal-actions">
+      <button id="add-cancel-btn">取消</button>
+      <button id="add-confirm">添加到地图</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
