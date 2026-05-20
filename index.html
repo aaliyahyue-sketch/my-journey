@@ -451,7 +451,7 @@ function getCity(mx,my){
   return hits.length?hits[0].object._city:null;
 }
 
-canvas.addEventListener('mousedown',e=>{if(panelOpen)return;if(e.target.closest('#fab,#add-modal'))return;isDrag=true;prevM={x:e.clientX,y:e.clientY};rotV={x:0,y:0};});
+canvas.addEventListener('mousedown',e=>{ if(e.target!==canvas)return;if(panelOpen)return;if(e.target.closest('#fab,#add-modal'))return;isDrag=true;prevM={x:e.clientX,y:e.clientY};rotV={x:0,y:0};});
 canvas.addEventListener('mousemove',e=>{
   if(isDrag){
     const dx=e.clientX-prevM.x,dy=e.clientY-prevM.y;
@@ -473,7 +473,7 @@ canvas.addEventListener('mousemove',e=>{
     if(c){tooltip.style.left=(e.clientX+16)+'px';tooltip.style.top=(e.clientY-10)+'px';}
   }
 });
-canvas.addEventListener('mouseup',e=>{if(e.target.closest('#fab,#add-modal'))return;
+canvas.addEventListener('mouseup',e=>{ if(e.target!==canvas)return;
   if(!isDrag)return;isDrag=false;
   const c=getCity(e.clientX,e.clientY);
   if(c)openPanel(c);
@@ -652,7 +652,9 @@ function addDotToGlobe(city){
 userCities.forEach(c => addDotToGlobe(c));
 
 // FAB open modal
-document.getElementById('fab').addEventListener('click', ()=>{
+document.getElementById('fab').addEventListener('click', (e)=>{
+  e.stopPropagation();
+  e.preventDefault();
   document.getElementById('add-name').value='';
   document.getElementById('add-country').value='';
   document.getElementById('add-desc').value='';
@@ -660,6 +662,12 @@ document.getElementById('fab').addEventListener('click', ()=>{
   document.getElementById('add-lng').value='';
   document.getElementById('add-status').textContent='';
   document.getElementById('add-modal').classList.add('show');
+});
+document.getElementById('fab').addEventListener('mousedown', (e)=>{
+  e.stopPropagation();
+});
+document.getElementById('fab').addEventListener('mouseup', (e)=>{
+  e.stopPropagation();
 });
 
 // Auto-lookup coords via nominatim
