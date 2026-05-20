@@ -171,6 +171,40 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
   </div>
 </div>
 
+
+<div id="fab-hit" title="添加城市"></div><div id="fab">＋</div>
+
+<div id="add-modal">
+  <div id="add-modal-bg"></div>
+  <div id="add-modal-box">
+    <h2>添加新城市</h2>
+    <div class="add-field">
+      <label class="add-label">城市名称</label>
+      <input class="add-input" id="add-name" placeholder="例：克拉科夫"/>
+    </div>
+    <div class="add-field">
+      <label class="add-label">国家</label>
+      <input class="add-input" id="add-country" placeholder="例：波兰"/>
+    </div>
+    <div class="add-field">
+      <label class="add-label">一句话描述</label>
+      <input class="add-input" id="add-desc" placeholder="例：中世纪古城与历史的重量"/>
+    </div>
+    <button id="add-search-btn">🔍 自动查询坐标（填好城市名和国家后点这里）</button>
+    <div id="add-status"></div>
+    <div class="add-field">
+      <label class="add-label">坐标（自动填入，也可手动填）</label>
+      <div id="add-coords-row">
+        <input class="add-input" id="add-lat" placeholder="纬度，例：50.06"/>
+        <input class="add-input" id="add-lng" placeholder="经度，例：19.94"/>
+      </div>
+    </div>
+    <div id="add-modal-actions">
+      <button id="add-cancel-btn">取消</button>
+      <button id="add-confirm">添加到地图</button>
+    </div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script>
 // ── Visited country ISO numeric codes ──
@@ -453,13 +487,18 @@ function getCity(mx,my){
 }
 
 function isUITarget(e){
-  return e.target.closest('#fab-hit,#fab,#add-modal,#panel,#dim,#loading');
+  // Any click inside panel, modal, fab, dim, or loading should NOT trigger globe drag
+  return !!(e.target.closest('#fab-hit,#fab,#add-modal,#panel,#dim,#loading'));
+}
+
+function modalOpen(){
+  return document.getElementById('add-modal').classList.contains('show');
 }
 
 document.addEventListener('mousedown',e=>{
   if(isUITarget(e))return;
   if(panelOpen)return;
-  if(document.getElementById('add-modal').classList.contains('show'))return;
+  if(modalOpen())return;
   isDrag=true;prevM={x:e.clientX,y:e.clientY};rotV={x:0,y:0};
   document.body.style.cursor='grabbing';
 });
@@ -471,7 +510,7 @@ document.addEventListener('mousemove',e=>{
     globeGroup.rotation.y+=rotV.y;globeGroup.rotation.x+=rotV.x;
     prevM={x:e.clientX,y:e.clientY};
   } else {
-    if(panelOpen||document.getElementById('add-modal').classList.contains('show'))return;
+    if(panelOpen||modalOpen())return;
     const c=getCity(e.clientX,e.clientY);
     if(c!==hovCity){
       hovCity=c;
@@ -491,7 +530,7 @@ document.addEventListener('mousemove',e=>{
 });
 
 document.addEventListener('mouseup',e=>{
-  if(isUITarget(e)){isDrag=false;document.body.style.cursor='grab';return;}
+  if(isUITarget(e)||modalOpen()){isDrag=false;document.body.style.cursor='grab';return;}
   if(!isDrag)return;
   isDrag=false;
   document.body.style.cursor='grab';
@@ -758,38 +797,5 @@ document.getElementById('add-modal-bg').addEventListener('click', ()=>{
 });
 </script>
 
-<div id="fab-hit" title="添加城市"></div><div id="fab">＋</div>
-
-<div id="add-modal">
-  <div id="add-modal-bg"></div>
-  <div id="add-modal-box">
-    <h2>添加新城市</h2>
-    <div class="add-field">
-      <label class="add-label">城市名称</label>
-      <input class="add-input" id="add-name" placeholder="例：克拉科夫"/>
-    </div>
-    <div class="add-field">
-      <label class="add-label">国家</label>
-      <input class="add-input" id="add-country" placeholder="例：波兰"/>
-    </div>
-    <div class="add-field">
-      <label class="add-label">一句话描述</label>
-      <input class="add-input" id="add-desc" placeholder="例：中世纪古城与历史的重量"/>
-    </div>
-    <button id="add-search-btn">🔍 自动查询坐标（填好城市名和国家后点这里）</button>
-    <div id="add-status"></div>
-    <div class="add-field">
-      <label class="add-label">坐标（自动填入，也可手动填）</label>
-      <div id="add-coords-row">
-        <input class="add-input" id="add-lat" placeholder="纬度，例：50.06"/>
-        <input class="add-input" id="add-lng" placeholder="经度，例：19.94"/>
-      </div>
-    </div>
-    <div id="add-modal-actions">
-      <button id="add-cancel-btn">取消</button>
-      <button id="add-confirm">添加到地图</button>
-    </div>
-  </div>
-</div>
 </body>
 </html>
