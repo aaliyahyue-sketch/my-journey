@@ -254,9 +254,13 @@ musicBtn.addEventListener('click', (e)=>{
 // ── Gold particle trail ──
 (function(){
   const pc = document.getElementById('particle-canvas');
-  function resize(){ pc.width=window.innerWidth; pc.height=window.innerHeight; }
+  function resize(){
+    pc.width = window.innerWidth || document.documentElement.clientWidth || 1920;
+    pc.height = window.innerHeight || document.documentElement.clientHeight || 1080;
+  }
   resize();
   window.addEventListener('resize', resize);
+  setTimeout(resize, 500);
   const ctx = pc.getContext('2d');
   const pts = [];
   const COLS = ['rgba(255,215,80,','rgba(255,245,150,','rgba(212,168,75,','rgba(255,255,180,'];
