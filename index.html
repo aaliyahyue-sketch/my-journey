@@ -179,7 +179,7 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 
 <button id="music-btn" title="背景音乐">♪</button>
 <audio id="bgm" loop>
-  <source src="https://raw.githubusercontent.com/aaliyahyue-sketch/my-journey/main/music.mp3" type="audio/mpeg"/>
+  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg"/>
 </audio>
 <div id="fab-hit" title="添加城市"></div><div id="fab">＋</div>
 
@@ -558,7 +558,7 @@ function latLngTo3D(lat,lng,r){
 // ── Interaction ──
 const raycaster=new THREE.Raycaster();
 const mouse2=new THREE.Vector2();
-let isDrag=false,prevM={x:0,y:0},rotV={x:0,y:0};
+let isDrag=false,prevM={x:0,y:0},rotV={x:0,y:0},isTouching=false;
 let hovCity=null,panelOpen=false;
 const tooltip=document.getElementById('tooltip');
 
@@ -624,6 +624,54 @@ document.addEventListener('mouseup',e=>{
 
 document.addEventListener('mouseleave',()=>{isDrag=false;});
 
+// ── Touch support ──
+document.addEventListener('touchstart',e=>{
+  if(isUITarget(e))return;
+  if(panelOpen||modalOpen())return;
+  const t=e.touches[0];
+  isDrag=true;isTouching=true;prevM={x:t.clientX,y:t.clientY};rotV={x:0,y:0};
+},{passive:true});
+
+document.addEventListener('touchmove',e=>{
+  if(!isDrag)return;
+  const t=e.touches[0];
+  const dx=t.clientX-prevM.x,dy=t.clientY-prevM.y;
+  rotV.y=dx*0.005;rotV.x=dy*0.005;
+  globeGroup.rotation.y+=rotV.y;globeGroup.rotation.x+=rotV.x;
+  prevM={x:t.clientX,y:t.clientY};
+},{passive:true});
+
+document.addEventListener('touchend',e=>{
+  isTouching=false;
+  if(!isDrag)return;
+  isDrag=false;
+  const t=e.changedTouches[0];
+  // Check if it was a tap (not a drag)
+  if(e.changedTouches.length===1){
+    const dx=Math.abs(t.clientX-prevM.x),dy=Math.abs(t.clientY-prevM.y);
+    if(dx<8&&dy<8){
+      const c=getCity(t.clientX,t.clientY);
+      if(c)openPanel(c);
+    }
+  }
+});
+
+// Pinch to zoom
+let lastPinchDist=0;
+document.addEventListener('touchmove',e=>{
+  if(e.touches.length===2){
+    const dx=e.touches[0].clientX-e.touches[1].clientX;
+    const dy=e.touches[0].clientY-e.touches[1].clientY;
+    const dist=Math.sqrt(dx*dx+dy*dy);
+    if(lastPinchDist>0){
+      camera.position.z=Math.max(1.5,Math.min(5,camera.position.z-(dist-lastPinchDist)*0.01));
+    }
+    lastPinchDist=dist;
+  } else {
+    lastPinchDist=0;
+  }
+},{passive:true});
+
 document.addEventListener('wheel',e=>{
   if(isUITarget(e))return;
   camera.position.z=Math.max(1.5,Math.min(5,camera.position.z+e.deltaY*0.003));
@@ -635,7 +683,7 @@ document.body.style.cursor='grab';
 let t2=0;
 function animate(){
   requestAnimationFrame(animate);t2+=0.016;
-  if(!isDrag&&!panelOpen){globeGroup.rotation.y+=0.0006;}
+  if(!isDrag&&!panelOpen&&!isTouching){globeGroup.rotation.y+=0.0006;}
   if(!isDrag){
     rotV.x*=0.9;rotV.y*=0.9;
     if(Math.abs(rotV.x)>0.00005){globeGroup.rotation.x+=rotV.x;}
