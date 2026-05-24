@@ -179,7 +179,7 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 
 <button id="music-btn" title="背景音乐">♪</button>
 <audio id="bgm" loop>
-  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg"/>
+  <source src="https://raw.githubusercontent.com/aaliyahyue-sketch/my-journey/main/music.mp3" type="audio/mpeg"/>
 </audio>
 <div id="fab-hit" title="添加城市"></div><div id="fab">＋</div>
 
@@ -877,20 +877,68 @@ function updateStats(){
   document.querySelectorAll('.sn')[2].textContent = totalContinents;
 }
 
-// Build a name->iso lookup for user-added countries
-// We'll repaint visited countries dynamically when user adds cities
-function getIsoByName(name){
-  const found = CITIES_BASE.find(c=>c.country===name);
-  return found ? found.iso : null;
+// ISO lookup: first try local cache, then fetch from nominatim
+const isoCache = {};
+CITIES_BASE.forEach(c=>{ if(c.iso) isoCache[c.country]=c.iso; });
+
+async function getIsoByCountryName(countryName){
+  if(isoCache[countryName]) return isoCache[countryName];
+  try {
+    const q = encodeURIComponent(countryName);
+    const res = await fetch('https://nominatim.openstreetmap.org/search?q='+q+'&format=json&limit=1&featuretype=country');
+    const data = await res.json();
+    if(data && data.length > 0 && data[0].osm_type){
+      // Get country details via reverse lookup
+      const lat = data[0].lat, lon = data[0].lon;
+      const rev = await fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lon+'&format=json');
+      const rd = await rev.json();
+      const cc = rd.address && rd.address.country_code;
+      if(cc){
+        // Convert alpha-2 to numeric ISO via a small lookup
+        const alpha2ToNum = {
+          'th':'764','pl':'616','my':'458','sg':'702','vn':'704','id':'360',
+          'ph':'608','in':'356','ae':'784','eg':'818','za':'710','br':'076',
+          'ar':'032','mx':'484','ca':'124','au':'036','nz':'554','ng':'566',
+          'ke':'404','gh':'288','et':'231','tz':'834','ma':'504','dz':'012',
+          'tn':'788','ly':'434','sd':'729','so':'706','mz':'508','zm':'894',
+          'zw':'716','bw':'072','na':'516','sz':'748','ls':'426','mg':'450',
+          'no':'578','se':'752','fi':'246','ee':'233','lv':'428','lt':'440',
+          'by':'112','ua':'804','md':'498','ro':'642','bg':'100','rs':'688',
+          'hr':'191','ba':'070','si':'705','sk':'703','mk':'807','al':'008',
+          'gr':'300','cy':'196','mt':'470','lu':'442','be':'056','nl':'528',
+          'ch':'756','at':'040','de':'276','fr':'250','es':'724','pt':'620',
+          'gb':'826','ie':'372','is':'352','dk':'208','pl':'616','cz':'203',
+          'hu':'348','tr':'792','il':'376','jo':'400','lb':'422','sy':'760',
+          'iq':'368','ir':'364','sa':'682','ye':'887','om':'512','kw':'414',
+          'bh':'048','qa':'634','uz':'860','kz':'398','mn':'496','kr':'410',
+          'jp':'392','cn':'156','tw':'158','hk':'344','mo':'446','vn':'704',
+          'th':'764','la':'418','kh':'116','mm':'104','bd':'050','np':'524',
+          'lk':'144','pk':'586','af':'004','us':'840','mx':'484','cu':'192',
+          'do':'214','ht':'332','jm':'388','tt':'780','co':'170','ve':'862',
+          'ec':'218','pe':'604','bo':'068','py':'600','uy':'858','cl':'152',
+        };
+        const numeric = alpha2ToNum[cc.toLowerCase()];
+        if(numeric){ isoCache[countryName]=numeric; return numeric; }
+      }
+    }
+  } catch(e){}
+  return null;
 }
 
-// Load saved user cities on startup
-userCities.forEach(c => {
-  addDotToGlobe(c);
-  const iso = getIsoByName(c.country);
-  if(iso) VISITED.add(iso);
-});
-updateStats();
+// Load saved user cities on startup - restore their country highlights
+(async function(){
+  for(const c of userCities){
+    addDotToGlobe(c);
+    const iso = await getIsoByCountryName(c.country);
+    if(iso) VISITED.add(iso);
+  }
+  updateStats();
+  // Repaint after all ISOs resolved
+  if(userCities.length > 0){
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+      .then(r=>r.json()).then(w=>drawCountriesOnCanvas(w)).catch(()=>{});
+  }
+})();
 
 // FAB open modal
 document.getElementById('fab-hit').addEventListener('click', (e)=>{
@@ -952,14 +1000,14 @@ document.getElementById('add-confirm').addEventListener('click', ()=>{
   userCities.push(newCity);
   saveUserCities();
   addDotToGlobe(newCity);
-  // Try to highlight country if we know its ISO
-  const iso = getIsoByName(country);
-  if(iso){ VISITED.add(iso); }
-  // Repaint countries overlay
-  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
-    .then(r=>r.json()).then(w=>drawCountriesOnCanvas(w)).catch(()=>{});
   updateStats();
   document.getElementById('add-modal').classList.remove('show');
+  // Async: look up ISO and repaint country
+  getIsoByCountryName(country).then(iso=>{
+    if(iso){ VISITED.add(iso); }
+    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+      .then(r=>r.json()).then(w=>drawCountriesOnCanvas(w)).catch(()=>{});
+  });
 });
 
 // Cancel
