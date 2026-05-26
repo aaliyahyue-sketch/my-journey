@@ -487,13 +487,9 @@ function setCityData(id,d){userData[id]=d;saveData(userData)}
 
 // ── Three.js setup ──
 const canvas=document.getElementById('globe-canvas');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,precision:'highp',logarithmicDepthBuffer:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio,3));
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.setSize(window.innerWidth,window.innerHeight);
-renderer.shadowMap.enabled=false;
-renderer.outputEncoding=THREE.sRGBEncoding;
-renderer.toneMapping=THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure=1.1;
 
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,0.1,200);
@@ -510,56 +506,68 @@ starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
 scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.055,transparent:true,opacity:0.65})));
 
 // Lighting
-scene.add(new THREE.AmbientLight(0x334466,0.6));
-const sun=new THREE.DirectionalLight(0xfff5e8,2.0);
+scene.add(new THREE.AmbientLight(0x223355,1.0));
+const sun=new THREE.DirectionalLight(0xfff8e8,1.6);
 sun.position.set(5,3,5);scene.add(sun);
-const fillLight=new THREE.DirectionalLight(0x223355,0.3);
-fillLight.position.set(-5,-2,-3);scene.add(fillLight);
 
 const GR=1.0;
 const globeGroup=new THREE.Group();
 scene.add(globeGroup);
 
 // ── Country overlay canvas texture ──
-// We'll draw visited countries as golden overlays using a 2D canvas mapped onto the sphere
 const overlayCanvas=document.createElement('canvas');
 overlayCanvas.width=4096;overlayCanvas.height=2048;
 const octx=overlayCanvas.getContext('2d');
 const overlayTex=new THREE.CanvasTexture(overlayCanvas);
 
-// Earth base sphere
-const earthGeo=new THREE.SphereGeometry(GR,128,128);
-const texLoader=new THREE.TextureLoader();
-const earthMat=new THREE.MeshPhongMaterial({shininess:25,transparent:false,specular:new THREE.Color(0x333333)});
+// ── Satellite tile earth (ESRI free tiles) ──
+const TILE_URL='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const tileCanvas=document.createElement('canvas');
+tileCanvas.width=4096;tileCanvas.height=2048;
+const tctx=tileCanvas.getContext('2d');
+const tileTex=new THREE.CanvasTexture(tileCanvas);
+tileTex.minFilter=THREE.LinearFilter;
 
-let loadCount=0;
-const fill=document.getElementById('loading-fill');
-function onTex(){
-  loadCount++;
-  fill.style.width=(loadCount/3*80)+'%';
-  if(loadCount>=2) fetchCountries();
+function loadTiles(zoom){
+  const numX=Math.pow(2,zoom);
+  const numY=Math.pow(2,zoom-1)||1;
+  const tileW=tileCanvas.width/numX;
+  const tileH=tileCanvas.height/numY;
+  let loaded=0;
+  const total=numX*numY;
+  const fill=document.getElementById('loading-fill');
+  for(let y=0;y<numY;y++){
+    for(let x=0;x<numX;x++){
+      const img=new Image();
+      img.crossOrigin='anonymous';
+      img.onload=()=>{
+        tctx.drawImage(img,x*tileW,y*tileH,tileW,tileH);
+        tileTex.needsUpdate=true;
+        loaded++;
+        fill.style.width=(loaded/total*70)+'%';
+        if(loaded===total){ fill.style.width='80%'; fetchCountries(); }
+      };
+      img.onerror=()=>{ loaded++; if(loaded===total) fetchCountries(); };
+      img.src=TILE_URL.replace('{z}',zoom).replace('{y}',y).replace('{x}',x);
+    }
+  }
 }
-// Load specular map for water shine
-texLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-water.png',t=>{
-  t.anisotropy=renderer.capabilities.getMaxAnisotropy();
-  earthMat.specularMap=t;
-  earthMat.needsUpdate=true;
-},undefined,()=>{});
-texLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg',t=>{t.anisotropy=renderer.capabilities.getMaxAnisotropy();t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;earthMat.map=t;earthMat.needsUpdate=true;onTex()},undefined,onTex);
-texLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png',t=>{t.anisotropy=renderer.capabilities.getMaxAnisotropy();earthMat.bumpMap=t;earthMat.bumpScale=0.06;earthMat.needsUpdate=true;onTex()},undefined,onTex);
 
+const earthGeo=new THREE.SphereGeometry(GR,128,128);
+const earthMat=new THREE.MeshPhongMaterial({map:tileTex,shininess:10,specular:new THREE.Color(0x111111)});
 const earthMesh=new THREE.Mesh(earthGeo,earthMat);
 globeGroup.add(earthMesh);
 
-// Country overlay sphere (slightly above earth)
 const ovGeo=new THREE.SphereGeometry(GR*1.001,128,128);
 const ovMat=new THREE.MeshBasicMaterial({map:overlayTex,transparent:true,depthWrite:false});
 const ovMesh=new THREE.Mesh(ovGeo,ovMat);
 globeGroup.add(ovMesh);
 
-// Atmosphere
-const atmMat=new THREE.MeshPhongMaterial({color:0x3366aa,transparent:true,opacity:0.07,side:THREE.FrontSide});
+const atmMat=new THREE.MeshPhongMaterial({color:0x3366aa,transparent:true,opacity:0.08,side:THREE.FrontSide});
 globeGroup.add(new THREE.Mesh(new THREE.SphereGeometry(GR*1.025,128,128),atmMat));
+
+// Start loading zoom level 4 tiles (16x8=128 tiles, good quality)
+loadTiles(4);
 
 // ── Fetch and draw countries ──
 function fetchCountries(){
