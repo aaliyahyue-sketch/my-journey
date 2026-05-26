@@ -114,7 +114,7 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 #music-btn:hover{background:rgba(212,168,75,0.25);}
 #music-btn.playing{border-color:rgba(212,168,75,0.7);box-shadow:0 0 12px rgba(212,168,75,0.2);}
 
-#zoom-btns{position:fixed;right:24px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:9999;}
+#zoom-btns{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;flex-direction:row;gap:10px;z-index:9999;pointer-events:all;}
 .zoom-btn{width:36px;height:36px;border-radius:50%;background:rgba(212,168,75,0.12);border:1px solid rgba(212,168,75,0.35);color:#d4a84b;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;user-select:none;line-height:1;}
 .zoom-btn:hover{background:rgba(212,168,75,0.28);border-color:rgba(212,168,75,0.7);}
 
@@ -149,6 +149,7 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 </div>
 
 <div id="hint">拖动旋转 · 滚轮缩放 · 点击城市</div>
+<div id="zoom-btns"><div class="zoom-btn" id="zoom-in" title="放大">＋</div><div class="zoom-btn" id="zoom-out" title="缩小">－</div></div>
 <div id="tooltip"><div id="tt-name"></div><div id="tt-country"></div><div id="tt-desc"></div></div>
 <div id="dim"></div>
 
@@ -581,7 +582,7 @@ function getCity(mx,my){
 
 function isUITarget(e){
   // Any click inside panel, modal, fab, dim, or loading should NOT trigger globe drag
-  return !!(e.target.closest('#fab-hit,#fab,#add-modal,#panel,#dim,#loading'));
+  return !!(e.target.closest('#fab-hit,#fab,#add-modal,#panel,#dim,#loading,#zoom-btns,#photo-prev,#photo-next'));
 }
 
 function modalOpen(){
@@ -711,13 +712,19 @@ animate();
 
 
 // ── Zoom buttons ──
+document.getElementById('zoom-in').addEventListener('mousedown', e=>{ e.stopPropagation(); });
+document.getElementById('zoom-in').addEventListener('mouseup', e=>{ e.stopPropagation(); });
 document.getElementById('zoom-in').addEventListener('click', e=>{
   e.stopPropagation();
-  camera.position.z = Math.max(1.5, camera.position.z - 0.3);
+  e.preventDefault();
+  camera.position.z = Math.max(1.5, camera.position.z - 0.4);
 });
+document.getElementById('zoom-out').addEventListener('mousedown', e=>{ e.stopPropagation(); });
+document.getElementById('zoom-out').addEventListener('mouseup', e=>{ e.stopPropagation(); });
 document.getElementById('zoom-out').addEventListener('click', e=>{
   e.stopPropagation();
-  camera.position.z = Math.min(5, camera.position.z + 0.3);
+  e.preventDefault();
+  camera.position.z = Math.min(5, camera.position.z + 0.4);
 });
 
 window.addEventListener('resize',()=>{
@@ -797,6 +804,8 @@ function renderPhotoList(){
 
 function setPhoto(i){photIdx=i;const d=getCityData(curCity.id);renderPhotos(editMode?tmpPhotos:d.photos||[]);}
 
+document.getElementById('photo-prev').addEventListener('mousedown',e=>e.stopPropagation());
+document.getElementById('photo-prev').addEventListener('mouseup',e=>e.stopPropagation());
 document.getElementById('photo-prev').addEventListener('click',e=>{
   e.stopPropagation();
   const photos=editMode?tmpPhotos:(curCity?getCityData(curCity.id).photos||[]:[]);
@@ -804,6 +813,8 @@ document.getElementById('photo-prev').addEventListener('click',e=>{
   photIdx=(photIdx-1+photos.length)%photos.length;
   renderPhotos(photos);
 });
+document.getElementById('photo-next').addEventListener('mousedown',e=>e.stopPropagation());
+document.getElementById('photo-next').addEventListener('mouseup',e=>e.stopPropagation());
 document.getElementById('photo-next').addEventListener('click',e=>{
   e.stopPropagation();
   const photos=editMode?tmpPhotos:(curCity?getCityData(curCity.id).photos||[]:[]);
@@ -1062,9 +1073,5 @@ document.getElementById('add-modal-bg').addEventListener('click', ()=>{
 </script>
 
 
-<div id="zoom-btns">
-  <div class="zoom-btn" id="zoom-in">＋</div>
-  <div class="zoom-btn" id="zoom-out">－</div>
-</div>
 </body>
 </html>
