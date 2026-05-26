@@ -113,6 +113,15 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
 #music-btn{position:fixed;bottom:24px;left:24px;width:44px;height:44px;border-radius:50%;background:rgba(212,168,75,0.12);border:1px solid rgba(212,168,75,0.35);color:#d4a84b;font-size:18px;z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.3s;}
 #music-btn:hover{background:rgba(212,168,75,0.25);}
 #music-btn.playing{border-color:rgba(212,168,75,0.7);box-shadow:0 0 12px rgba(212,168,75,0.2);}
+
+#zoom-btns{position:fixed;right:24px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:9999;}
+.zoom-btn{width:36px;height:36px;border-radius:50%;background:rgba(212,168,75,0.12);border:1px solid rgba(212,168,75,0.35);color:#d4a84b;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;user-select:none;line-height:1;}
+.zoom-btn:hover{background:rgba(212,168,75,0.28);border-color:rgba(212,168,75,0.7);}
+
+#photo-prev,#photo-next{position:absolute;top:50%;transform:translateY(-50%);width:32px;height:32px;background:rgba(0,0,0,0.4);border:0.5px solid rgba(255,255,255,0.15);border-radius:50%;color:rgba(255,255,255,0.7);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:5;transition:all 0.2s;user-select:none;}
+#photo-prev{left:10px;}
+#photo-next{right:10px;}
+#photo-prev:hover,#photo-next:hover{background:rgba(212,168,75,0.5);border-color:#d4a84b;color:#fff;}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
 </head>
@@ -151,7 +160,7 @@ html,body{background:#000;width:100%;height:100%;overflow:hidden}
       <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="#4a6080" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       <div id="photo-empty-label">点击编辑可上传照片</div>
     </div>
-    <div id="photo-fade"></div>
+    <div id="photo-prev" style="display:none">‹</div><div id="photo-next" style="display:none">›</div><div id="photo-fade"></div>
     <div id="photo-dots"></div>
   </div>
   <div id="panel-body">
@@ -700,6 +709,17 @@ function animate(){
 }
 animate();
 
+
+// ── Zoom buttons ──
+document.getElementById('zoom-in').addEventListener('click', e=>{
+  e.stopPropagation();
+  camera.position.z = Math.max(1.5, camera.position.z - 0.3);
+});
+document.getElementById('zoom-out').addEventListener('click', e=>{
+  e.stopPropagation();
+  camera.position.z = Math.min(5, camera.position.z + 0.3);
+});
+
 window.addEventListener('resize',()=>{
   camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
@@ -754,12 +774,19 @@ function renderPhotos(photos){
   const img=document.getElementById('panel-img');
   const empty=document.getElementById('photo-empty');
   const dots=document.getElementById('photo-dots');
+  const prev=document.getElementById('photo-prev');
+  const next=document.getElementById('photo-next');
   if(photos&&photos.length>0){
     img.style.display='block';img.classList.remove('loaded');
     img.onload=()=>img.classList.add('loaded');img.src=photos[photIdx]||'';
     empty.style.display='none';
     dots.innerHTML=photos.map((_,i)=>`<div class="pdot ${i===photIdx?'on':''}" style="width:${i===photIdx?'18':'5'}px" onclick="setPhoto(${i})"></div>`).join('');
-  } else {img.style.display='none';empty.style.display='flex';dots.innerHTML='';}
+    prev.style.display=photos.length>1?'flex':'none';
+    next.style.display=photos.length>1?'flex':'none';
+  } else {
+    img.style.display='none';empty.style.display='flex';dots.innerHTML='';
+    prev.style.display='none';next.style.display='none';
+  }
 }
 
 function renderPhotoList(){
@@ -769,6 +796,21 @@ function renderPhotoList(){
 }
 
 function setPhoto(i){photIdx=i;const d=getCityData(curCity.id);renderPhotos(editMode?tmpPhotos:d.photos||[]);}
+
+document.getElementById('photo-prev').addEventListener('click',e=>{
+  e.stopPropagation();
+  const photos=editMode?tmpPhotos:(curCity?getCityData(curCity.id).photos||[]:[]);
+  if(photos.length<2)return;
+  photIdx=(photIdx-1+photos.length)%photos.length;
+  renderPhotos(photos);
+});
+document.getElementById('photo-next').addEventListener('click',e=>{
+  e.stopPropagation();
+  const photos=editMode?tmpPhotos:(curCity?getCityData(curCity.id).photos||[]:[]);
+  if(photos.length<2)return;
+  photIdx=(photIdx+1)%photos.length;
+  renderPhotos(photos);
+});
 function removePhoto(i){tmpPhotos.splice(i,1);renderPhotoList();}
 
 document.getElementById('upload-btn').addEventListener('click',()=>{
@@ -1019,5 +1061,10 @@ document.getElementById('add-modal-bg').addEventListener('click', ()=>{
 });
 </script>
 
+
+<div id="zoom-btns">
+  <div class="zoom-btn" id="zoom-in">＋</div>
+  <div class="zoom-btn" id="zoom-out">－</div>
+</div>
 </body>
 </html>
