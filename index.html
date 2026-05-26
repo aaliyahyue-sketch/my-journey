@@ -487,9 +487,13 @@ function setCityData(id,d){userData[id]=d;saveData(userData)}
 
 // ── Three.js setup ──
 const canvas=document.getElementById('globe-canvas');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true,precision:'highp',logarithmicDepthBuffer:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,3));
 renderer.setSize(window.innerWidth,window.innerHeight);
+renderer.shadowMap.enabled=false;
+renderer.outputEncoding=THREE.sRGBEncoding;
+renderer.toneMapping=THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.1;
 
 const scene=new THREE.Scene();
 const camera=new THREE.PerspectiveCamera(45,window.innerWidth/window.innerHeight,0.1,200);
@@ -506,9 +510,11 @@ starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
 scene.add(new THREE.Points(starGeo,new THREE.PointsMaterial({color:0xffffff,size:0.055,transparent:true,opacity:0.65})));
 
 // Lighting
-scene.add(new THREE.AmbientLight(0x223355,1.0));
-const sun=new THREE.DirectionalLight(0xfff8e8,1.6);
+scene.add(new THREE.AmbientLight(0x334466,0.6));
+const sun=new THREE.DirectionalLight(0xfff5e8,2.0);
 sun.position.set(5,3,5);scene.add(sun);
+const fillLight=new THREE.DirectionalLight(0x223355,0.3);
+fillLight.position.set(-5,-2,-3);scene.add(fillLight);
 
 const GR=1.0;
 const globeGroup=new THREE.Group();
@@ -524,7 +530,7 @@ const overlayTex=new THREE.CanvasTexture(overlayCanvas);
 // Earth base sphere
 const earthGeo=new THREE.SphereGeometry(GR,128,128);
 const texLoader=new THREE.TextureLoader();
-const earthMat=new THREE.MeshPhongMaterial({shininess:8,transparent:false});
+const earthMat=new THREE.MeshPhongMaterial({shininess:25,transparent:false,specular:new THREE.Color(0x333333)});
 
 let loadCount=0;
 const fill=document.getElementById('loading-fill');
@@ -533,8 +539,14 @@ function onTex(){
   fill.style.width=(loadCount/3*80)+'%';
   if(loadCount>=2) fetchCountries();
 }
-texLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',t=>{t.anisotropy=renderer.capabilities.getMaxAnisotropy();earthMat.map=t;earthMat.needsUpdate=true;onTex()},undefined,onTex);
-texLoader.load('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png',t=>{earthMat.bumpMap=t;earthMat.bumpScale=0.04;earthMat.needsUpdate=true;onTex()},undefined,onTex);
+// Load specular map for water shine
+texLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-water.png',t=>{
+  t.anisotropy=renderer.capabilities.getMaxAnisotropy();
+  earthMat.specularMap=t;
+  earthMat.needsUpdate=true;
+},undefined,()=>{});
+texLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-blue-marble.jpg',t=>{t.anisotropy=renderer.capabilities.getMaxAnisotropy();t.minFilter=THREE.LinearMipmapLinearFilter;t.magFilter=THREE.LinearFilter;t.generateMipmaps=true;earthMat.map=t;earthMat.needsUpdate=true;onTex()},undefined,onTex);
+texLoader.load('https://cdn.jsdelivr.net/npm/three-globe@2.31.1/example/img/earth-topology.png',t=>{t.anisotropy=renderer.capabilities.getMaxAnisotropy();earthMat.bumpMap=t;earthMat.bumpScale=0.06;earthMat.needsUpdate=true;onTex()},undefined,onTex);
 
 const earthMesh=new THREE.Mesh(earthGeo,earthMat);
 globeGroup.add(earthMesh);
